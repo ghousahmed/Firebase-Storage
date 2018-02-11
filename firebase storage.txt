@@ -1,0 +1,131 @@
+postResume(ev) {
+        ev.preventDefault();
+
+        this.props.showAuthLoader();
+
+        const phoneRegEx = /^((\+92)|(0092)|[0])[3]\d{2}\d{7}$/.test(this.refs.mobNum.state.value);
+        const cnicRegEx = /^[0-9+]{5}-[0-9+]{7}-[0-9]{1}$/.test(this.refs.cnicNum.state.value);
+
+        let fName = this.refs.firstName.input.value;
+        let lName = this.refs.lastName.input.value;
+        let fatherName = this.refs.fatherName.input.value;
+        let cnicNum = this.refs.cnicNum.state.value;
+        let phone = this.refs.mobNum.state.value;
+        let jobSeekerDOB = this.refs.jobSeekerDOB.refs.input.input.value;
+        let jobSeekerQualification = this.refs.jobSeekerQualification.input.value;
+        let email = this.refs.jobSeekerEmail.input.value;
+        let jobSeekerDistrict = this.refs.jobSeekerDistrict.input.value;
+        let jobSeekerReligion = this.refs.jobSeekerReligion.input.value;
+        let jobSeekerAddress = this.refs.jobSeekerAddress.input.refs.input.value;
+        let jobSeekerPermAddress = this.refs.jobSeekerPermAddress.input.refs.input.value;
+        let jobSeekerOtherDetail = this.refs.jobSeekerOtherDetail.input.refs.input.value;
+        let mStatus = mStatusItems[this.state.mStatusValue].props.primaryText;
+        let jobTitle = jobCatagItems[this.state.jobCatagValue].props.primaryText;
+        let expLevel = expItems[this.state.expValue].props.primaryText;
+        let fileTitle = this.state.fileTitle;
+        let expectedSalary = this.refs.jobSeekerExpectedSalary.input.value;
+
+        let that = this;
+
+        if (phoneRegEx && cnicRegEx) {
+
+            firebase.storage().ref().child('sweet_gifs/' + fileTitle).getDownloadURL()
+                .then(url => {
+
+                    let user = firebase.auth().currentUser;
+
+                    let date = new Date().toLocaleString();
+
+                    let jobSeekerDetail = {
+                        firstName: fName,
+                        lastName: lName,
+                        fatherName: fatherName,
+                        cnicNum: cnicNum,
+                        mobNum: phone,
+                        jobSeekerDOB: jobSeekerDOB,
+                        jobSeekerQualification: jobSeekerQualification,
+                        email: email,
+                        jobSeekerDistrict: jobSeekerDistrict,
+                        jobSeekerReligion: jobSeekerReligion,
+                        jobSeekerAddress: jobSeekerAddress,
+                        jobSeekerPermAddress: jobSeekerPermAddress,
+                        jobSeekerOtherDetail: jobSeekerOtherDetail,
+                        mStatus: mStatus,
+                        jobTitle: jobTitle,
+                        expLevel: expLevel,
+                        currentDate: date,
+                        catagory: "jobSeekerDetail",
+                        expectedSalary: expectedSalary,
+                        //callForInterview: false,
+                        hired: false,
+                        //uid: user.uid
+                    }
+
+                    jobSeekerDetail.imageLink = url;
+
+                    firebase.database().ref('/').child(`jobSeekerDetail/${user.uid}`).set(jobSeekerDetail)
+                        .then(() => {
+                            that.setState({
+                                jobPostSuccess: true,
+                                jobCatagValue: null,
+                                expValue: null,
+                                mStatusValue: null,
+                                fileTitle: ""
+                            })
+                        })
+                    const message = {
+                        Message: `${jobSeekerDetail.firstName} ${jobSeekerDetail.lastName} posted a Resume.`,
+                        Date: jobSeekerDetail.currentDate,
+                        imageLink: jobSeekerDetail.imageLink,
+                        detail: jobSeekerDetail.jobSeekerOtherDetail
+                    }
+                    firebase.database().ref('/').child("Notifications").push(message)
+
+                    this.refs.mainForm.reset();
+                    that.props.hideAuthLoader();
+                    this.props.history.push('/home');
+
+                }).catch(() => {
+                    that.setState({
+                        jobPostFailure: true
+                    })
+
+                    that.props.hideAuthLoader();
+                })
+        }
+        else {
+            if (!phoneRegEx) {
+                that.props.showSnackBar("Please Insert Correct Mobile Number Format");
+                that.refs.mobNum.focus();
+                that.refs.mobNum.state.value = "";
+                that.refs.mobNum.props.floatingLabelStyle.color = "red";
+                that.refs.mobNum.props.underlineFocusStyle.borderBottomColor = "red";
+            }
+            else if (!cnicRegEx) {
+                that.props.showSnackBar("Please insert Correct CNIC Format");
+                console.log(that.refs.cnicNum)
+                that.refs.cnicNum.focus();
+            }
+        }
+
+        this.hideMessage();
+    }
+
+    hideMessage = () => {
+        setTimeout(() => {
+            this.setState({
+                jobPostSuccess: false
+            })
+        }, 5000);
+    }
+
+    uploadImage(ev) {
+        let file = ev.target.files[0];
+        let fileTitle = ev.target.files[0].name;
+
+        this.setState({
+            fileTitle: fileTitle
+        })
+
+        firebase.storage().ref('sweet_gifs/' + fileTitle).put(file);
+    }
